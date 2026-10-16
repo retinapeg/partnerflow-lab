@@ -1,0 +1,11 @@
+# PartnerFlow Lab dependencies (versions tested together on Python 3.11).
+fastapi==0.143.0      # the web framework: routes, validation, /docs
+uvicorn==0.54.0       # the server that runs the FastAPI app
+pydantic==2.14.1      # request and response validation
+httpx==0.28.1         # HTTP client: dashboard, traffic generator, tests
+pandas==3.0.6         # tables for analytics
+numpy==2.4.6          # random numbers for the synthetic dataset
+scipy==1.17.1         # statistics (normal distribution, chi-square)
+streamlit==1.65.0     # the dashboard
+altair==6.3.0         # charts inside the dashboard (installed with streamlit)
+pytest==9.1.1         # tests

@@ -1,0 +1,14 @@
+# Streamlit settings for PartnerFlow Lab.
+
+[server]
+headless = true            # do not ask first-run questions or open a browser by itself
+address = "127.0.0.1"      # local machine only
+
+[browser]
+gatherUsageStats = false   # nothing is sent anywhere
+
+[theme]
+base = "light"
+
+[client]
+toolbarMode = "minimal"    # hides the "Deploy" button: this lab is local only
