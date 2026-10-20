@@ -8,11 +8,16 @@ requests, switch failures on, replay a faulty release, and analyse the results.
 
 Nothing here is real: no real lender, customers, money or credit decisions.
 
-One of a pair. This repo is the operations side of a partner lending channel: API keys, faults,
-a faulty release and the monitoring that catches it. The experiments side, which estimator
-recovers a rollout's true effect when the biggest partners go first, is
-[partner-funnel-lab](https://github.com/retinapeg/partner-funnel-lab). Three-minute walkthrough
-of this one: [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
+Two halves, one lab:
+
+- **Operations** (this folder): the API partners integrate with: keys, faults, a faulty release
+  and the monitoring that catches it. Three-minute walkthrough: [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
+- **Experiments** ([`experiments/`](experiments/)): a simulated partner funnel with the true
+  effects baked in, and the estimators tested against them. When pre-qualification rolls out
+  partner by partner and the biggest partners go first, naive before/after overstates the lift
+  by about four points; difference-in-differences lands within half a point; a hierarchical
+  Bayesian model's partner-level intervals cover 92.5% of true rates. The results table in
+  [`experiments/README.md`](experiments/README.md) is generated from the passing tests.
 
 ## Run it
 

@@ -1,0 +1,18 @@
+[project]
+name = "partner-funnel-lab"
+version = "0.1.0"
+description = "A simulated partner-referred lending funnel and causal estimation lab"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "numpy>=2.1,<2.4", "pandas>=2.2,<3", "pyarrow>=18,<24",
+  "scipy>=1.14,<2", "statsmodels>=0.14,<0.15", "pymc>=5.20,<6",
+  "arviz>=0.21,<0.23",
+  "fastapi>=0.115,<1", "uvicorn>=0.32,<1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

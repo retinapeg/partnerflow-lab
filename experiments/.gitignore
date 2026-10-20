@@ -1,0 +1,8 @@
+.venv/
+data/*
+!data/README.md
+__pycache__/
+*.parquet
+.venv-python311/
+.cache/
+.pytest_cache/
