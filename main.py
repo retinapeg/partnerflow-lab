@@ -14,6 +14,7 @@ How a request travels through this file:
                          <- record_request writes one row to request_log
 """
 
+import asyncio
 import logging
 import re
 import time
@@ -28,17 +29,46 @@ from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from partnerflow import config, db, faults, rules, schemas
+from partnerflow import config, db, faults, recurrence, rules, schemas, triage
 from partnerflow.metrics import build_metrics
 
 logger = logging.getLogger("partnerflow")
 
 
+async def auto_triage_loop(stop: asyncio.Event) -> None:
+    """Background timer: run the triage agent when the lab has it switched on.
+
+    The setting is read from SQLite on every tick, so the dashboard can switch
+    it on and off without restarting the API. The agent runs in a worker thread
+    so it never blocks requests.
+    """
+    while not stop.is_set():
+        settings = db.get_lab_config().get("auto_triage", config.DEFAULT_AUTO_TRIAGE)
+        enabled = bool(settings.get("enabled"))
+        if enabled:
+            try:
+                await asyncio.to_thread(triage.run, mode=settings.get("mode", "rules"))
+            except Exception:
+                logger.exception("Automatic triage failed")
+        wait = max(5, int(settings.get("interval_seconds", 30))) if enabled else 5
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=wait)
+        except asyncio.TimeoutError:
+            pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Runs once when the server starts: make sure the database exists."""
+    """Runs once when the server starts: make sure the database exists, and
+    start the automatic-triage timer (idle until switched on)."""
     db.init_db()
-    yield
+    stop = asyncio.Event()
+    timer = asyncio.create_task(auto_triage_loop(stop))
+    try:
+        yield
+    finally:
+        stop.set()
+        await timer
 
 
 app = FastAPI(
@@ -438,3 +468,58 @@ def list_webhooks(limit: int = Query(default=50, ge=1, le=5000), failed_only: bo
 def redeliver_webhooks():
     """Retry every failed webhook delivery using the current fault settings."""
     return faults.redeliver_failed_webhooks(db.get_lab_config())
+
+
+# =============================================================================
+# Recurring issues and the triage agent
+# =============================================================================
+
+@app.get("/lab/recurring", tags=["recurring issues"])
+def recurring_issues(gap_seconds: float = Query(default=recurrence.GAP_SECONDS, ge=1, le=86_400),
+                     clean_requests: int = Query(default=recurrence.CLEAN_REQUESTS, ge=1, le=10_000)):
+    """Every failure fingerprint with its episodes and recurrence statistics.
+
+    See partnerflow/recurrence.py for the definitions. The same numbers drive
+    the dashboard's Recurring issues page and the triage agent.
+    """
+    data = triage.gather(gap_seconds, clean_requests)
+    return {
+        "parameters": {"gap_seconds": gap_seconds, "clean_requests": clean_requests,
+                       "min_occurrences": recurrence.MIN_OCCURRENCES, "alpha": recurrence.ALPHA},
+        "events": int(len(data["events"])),
+        "registry": recurrence.to_records(data["registry"]),
+        "episodes": recurrence.to_records(data["episodes"].drop(columns=["first_pos", "last_pos"]))
+        if len(data["episodes"]) else [],
+    }
+
+
+@app.post("/lab/triage", tags=["recurring issues"])
+def run_triage(body: schemas.TriageRequest | None = None):
+    """Run the triage agent once: decide, act (within the runbook), log.
+
+    `mode` is "rules" (deterministic) or "llm" (Claude writes the summary and
+    message; needs ANTHROPIC_API_KEY on the API, otherwise falls back to rules).
+    `dry_run` logs the decision without acting. `force` re-triages even
+    episodes already handled, and includes closed ones.
+    """
+    body = body or schemas.TriageRequest()
+    return triage.run(gap_seconds=body.gap_seconds, clean_requests=body.clean_requests,
+                      mode=body.mode, dry_run=body.dry_run, force=body.force,
+                      fingerprint=body.fingerprint, only_open=not body.force and body.only_open)
+
+
+@app.get("/lab/triage", tags=["recurring issues"])
+def triage_log(limit: int = Query(default=50, ge=1, le=5000), fingerprint: str | None = None):
+    """Every decision the agent has made, newest first, with the actions it took."""
+    return {"auto_triage": db.get_lab_config().get("auto_triage", config.DEFAULT_AUTO_TRIAGE),
+            "llm_available": config.llm_available(), "model": config.TRIAGE_MODEL,
+            "entries": db.list_triage_log(limit, fingerprint)}
+
+
+@app.put("/lab/triage/auto", tags=["recurring issues"])
+def set_auto_triage(body: schemas.AutoTriageChange):
+    """Switch the automatic timer on or off, or change its interval and mode."""
+    settings = dict(db.get_lab_config().get("auto_triage", config.DEFAULT_AUTO_TRIAGE))
+    settings.update(body.model_dump(exclude_none=True))
+    db.set_lab_config("auto_triage", settings)
+    return lab_state()

@@ -18,7 +18,7 @@ from streamlit.testing.v1 import AppTest
 from partnerflow import config
 
 PAGES = ["Overview", "API playground", "Fault injection", "Release simulation",
-         "Incident investigation", "Data science", "Broker monitoring"]
+         "Incident investigation", "Recurring issues", "Data science", "Broker monitoring"]
 CEDAR = {"X-API-Key": "demo-key-cedar-0003"}
 CUSTOMER = {"business_name": "Canal Print Ltd", "contact_email": "owner@canalprint.example",
             "annual_turnover": 150_000, "trading_months": 40}
@@ -279,3 +279,37 @@ def test_reset_button_clears_the_lab(api):
     click(app, "Reset everything")
     assert httpx.get(f"{api}/metrics").json()["requests"]["total"] == 0
     assert httpx.get(f"{api}/health").json()["release_version"] == "v1.0.0"
+
+
+def test_recurring_issues_page_replays_a_recurrence_and_runs_the_agent(api):
+    httpx.post(f"{api}/lab/reset")
+    app = open_page("Recurring issues")
+    assert "No failures recorded yet" in text_of(app)
+
+    app.selectbox(key="replay_scenario").set_value("Revoked API key (cedar) comes back after a fix").run()
+    click(app, "Replay it")
+    app = open_page("Recurring issues")
+    assert "What keeps coming back" in "\n".join(h.value for h in app.header)
+    registry = httpx.get(f"{api}/lab/recurring").json()["registry"]
+    cedar = next(r for r in registry if r["fingerprint"] == "cedar · 401 api_key_revoked")
+    assert cedar["episodes"] == 2 and cedar["status"] == "active"
+    # The lab is healthy again after the replay.
+    assert all(not f["enabled"] for f in httpx.get(f"{api}/lab/config").json()["faults"].values())
+
+    # The first option in the selector is the top row of the registry: the active 401.
+    assert app.selectbox(key="rec_choice").value.startswith("cedar · 401 api_key_revoked")
+    assert "occurrences in 2 episodes" in text_of(app)
+    click(app, "Run the agent on this issue")
+    page = text_of(app)
+    assert "ACT" in page and "owner: us" in page
+    assert "Hi Cedar Pay team" in "\n".join(str(c.value) for c in app.code)
+    log = httpx.get(f"{api}/lab/triage").json()["entries"]
+    assert log and log[0]["fingerprint"] == "cedar · 401 api_key_revoked" and log[0]["status"] == "act"
+
+    # The timer setting round-trips through the page.
+    app.toggle(key="auto_on").set_value(True).run()
+    click(app, "Apply")
+    assert httpx.get(f"{api}/lab/triage").json()["auto_triage"]["enabled"] is True
+    app.toggle(key="auto_on").set_value(False).run()
+    click(app, "Apply")
+    assert httpx.get(f"{api}/lab/triage").json()["auto_triage"]["enabled"] is False

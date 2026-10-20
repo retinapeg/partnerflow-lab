@@ -154,11 +154,24 @@ FAULT_INFO = {
     },
 }
 
+# --- Recurring-issue triage (partnerflow/triage.py) ---------------------------
+# The agent runs on demand from the dashboard, from `python triage.py`, or on a
+# timer inside the API when auto_triage is switched on. "rules" needs nothing;
+# "llm" needs ANTHROPIC_API_KEY in the API's environment.
+DEFAULT_AUTO_TRIAGE = {"enabled": False, "interval_seconds": 30, "mode": "rules"}
+TRIAGE_MODEL = os.environ.get("PARTNERFLOW_TRIAGE_MODEL", "claude-haiku-5-5")
+
+
+def llm_available() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 DEFAULT_LAB_CONFIG = {
     "release": "A",
     "hotfix": False,
     "r204_band": list(R204_DEFAULT_BAND),
     "faults": DEFAULT_FAULTS,
+    "auto_triage": DEFAULT_AUTO_TRIAGE,
 }
 
 # Requests to these paths are not written to the request log. They are

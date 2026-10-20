@@ -223,3 +223,23 @@ class WebhookDelivery(BaseModel):
     status: Literal["delivered", "failed"]
     last_status_code: int | None
     failure_reason: str | None
+
+
+class TriageRequest(BaseModel):
+    """Options for one run of the triage agent (POST /lab/triage)."""
+    model_config = ConfigDict(extra="forbid")
+    mode: Literal["rules", "llm"] = "rules"
+    dry_run: bool = False
+    force: bool = False
+    only_open: bool = True
+    fingerprint: str | None = Field(default=None, max_length=200)
+    gap_seconds: float = Field(default=120, ge=1, le=86_400)
+    clean_requests: int = Field(default=10, ge=1, le=10_000)
+
+
+class AutoTriageChange(BaseModel):
+    """Settings for the automatic timer (PUT /lab/triage/auto)."""
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool | None = None
+    interval_seconds: int | None = Field(default=None, ge=5, le=3600)
+    mode: Literal["rules", "llm"] | None = None

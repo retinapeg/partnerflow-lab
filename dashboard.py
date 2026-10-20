@@ -10,7 +10,8 @@ something. Each page lives in its own file in the views/ folder.
 import streamlit as st
 
 from partnerflow import config
-from views import brokers, common, data_science, faults, investigation, overview, playground, release
+from views import (brokers, common, data_science, faults, investigation, overview, playground,
+                   recurring, release)
 
 PAGES = {
     "Overview": overview.render,
@@ -18,6 +19,7 @@ PAGES = {
     "Fault injection": faults.render,
     "Release simulation": release.render,
     "Incident investigation": investigation.render,
+    "Recurring issues": recurring.render,
     "Data science": data_science.render,
     "Broker monitoring": brokers.render,
 }
@@ -53,6 +55,10 @@ with st.sidebar:
             st.write(f"- {label}")
     else:
         st.write("Active faults: none")
+
+    auto = lab.get("auto_triage", {})
+    if auto.get("enabled"):
+        st.write(f"Auto-triage: **on**, every {auto.get('interval_seconds')} s")
 
     st.divider()
     st.link_button("Open API docs (/docs)", config.api_url() + "/docs")

@@ -10,8 +10,9 @@ Nothing here is real: no real lender, customers, money or credit decisions.
 
 Two halves, one lab:
 
-- **Operations** (this folder): the API partners integrate with: keys, faults, a faulty release
-  and the monitoring that catches it. Three-minute walkthrough: [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
+- **Operations** (this folder): the API partners integrate with: keys, faults, a faulty release,
+  the monitoring that catches it, and a bounded triage agent for the failures that keep coming
+  back (*Recurring issues* below). Three-minute walkthrough: [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
 - **Experiments** ([`experiments/`](experiments/)): a simulated partner funnel with the true
   effects baked in, and the estimators tested against them. When pre-qualification rolls out
   partner by partner and the biggest partners go first, naive before/after overstates the lift
@@ -201,6 +202,7 @@ always shows the current state of the API and the database.
 | 422 | `rule_R204_amount_band` | `check_r204_amount_band()` in rules.py | Valid JSON, refused by the release B rule |
 | 429 | `rate_limited` | `rate_limit_retry_after()` in faults.py | Fault F is on and the partner is over its limit |
 | 500 | `server_exception` | Caught by `record_request()` in main.py | Code raised an exception that nothing handled |
+| (webhook) | `receiver_unavailable` | `deliver_webhook()` in faults.py | The partner's receiver answered 503 three times; recorded in `webhook_deliveries`, not the request log |
 
 The rule of thumb: **4xx means the caller must change something. 5xx means the API
 failed and the caller did nothing wrong.** A 422 has two very different sources here:
@@ -470,6 +472,50 @@ questions asked of them need individuals.
 Built-in incident: Meridian Capital's timeouts spike from 09:00 to 16:59 on day 10. You can
 add faults of your own (broker, time, duration, failure rate, error type, latency).
 
+## Recurring issues (the failures that come back, and an agent that triages them)
+
+The *Recurring issues* page works on the live request log and the webhook log. It answers
+three questions an integration manager asks every week: *which* failures keep coming back,
+*how sure* are we that the latest one is real, and *what did we do about it*.
+
+- **Fingerprint**: partner, status code, failure reason (`cedar · 401 api_key_revoked`). The
+  endpoints it has hit are its *exposed* traffic.
+- **Episode**: a run of occurrences with no quiet gap inside it. A gap is 10 consecutive clean
+  exposed requests, or 120 seconds of silence (both adjustable; lab time stands in for days).
+  Two or more episodes make a fingerprint *recurring*.
+- **Baseline**, per episode and in time order: the fingerprint's share of exposed traffic before
+  the episode, as a Jeffreys estimate `(x + 1/2) / (n + 1)`, with episodes already recognised as
+  incidents left out of the history. So a recurrence is not mistaken for the new normal, and an
+  intended rule refusing a steady 5% is not mistaken for an incident.
+- **Flag**: the exact binomial tail `P(X >= x | n, p0)` below the 3-sigma threshold, and at least
+  three occurrences. One request is an anecdote; three are a pattern.
+- **Posterior** share per episode `Beta(x + 1/2, n - x + 1/2)`, a **trend** test (latest episode
+  against the earlier ones pooled) and the median gap between episodes.
+
+The **triage agent** ([partnerflow/triage.py](partnerflow/triage.py)) is deliberately bounded. It
+reads an *evidence pack* built from those statistics, must pick a *runbook*
+([partnerflow/runbooks.py](partnerflow/runbooks.py)), decides **act** or **watch**, drafts the
+message to the partner with the numbers filled in, and takes only the one action the runbook
+allows: replaying failed webhooks, or opening an incident / paging on-call (simulated). It never
+touches a fault switch or a release, a 5xx is always ours whatever the engine says, and every
+decision is written to `triage_log` with the evidence it saw. Two engines give the same shape:
+`rules` (deterministic, always available) and `llm` (Claude writes the summary and message from
+the same evidence; set `ANTHROPIC_API_KEY` on the API, otherwise it falls back to the rules).
+
+Run it from the page, on a timer inside the API (**Run it automatically**), by `curl`, or from a
+terminal:
+
+```bash
+.venv/bin/python triage.py --show        # the registry
+.venv/bin/python triage.py               # one pass: decide, act, log
+.venv/bin/python triage.py --watch 30    # keep running
+curl -X POST http://127.0.0.1:8010/lab/triage -H "Content-Type: application/json" -d '{"dry_run": true}'
+curl http://127.0.0.1:8010/lab/recurring
+```
+
+The page's **Replay a recurring issue** button tells the whole story in fifteen seconds: healthy
+traffic, a fault, a healthy spell, the same fault again, then the agent's decision.
+
 ## Project layout
 
 ```
@@ -486,12 +532,16 @@ partnerflow/
   analytics.py          Statistics and analysis functions
   brokersim.py          Five-broker ~1M-request simulator (hourly aggregates, applications, tickets)
   monitoring.py         Control charts, incident detection, difference-in-differences
+  recurrence.py         Fingerprints, episodes, sequential baseline, registry (live log)
+  runbooks.py           What to do when each failure comes back, and what the agent may do
+  triage.py             The bounded triage agent: evidence pack, decision, actions, audit log
   explain.py            Plain-English guide to each failure reason
   charts.py             Chart helpers for the dashboard
 dashboard.py, views/    The Streamlit dashboard, one file per page
 run.py, start.sh        One-command launcher
 reset.py, demo.py       Reset, and the release story from the terminal
-tests/                  151 automated tests
+incident.py, triage.py  Blind incident drill; the triage agent from the terminal
+tests/                  180 automated tests
 ```
 
 ## Known limitations
@@ -520,5 +570,11 @@ tests/                  151 automated tests
   two-proportion z-test, a chi-square test. No correction for peeking or for multiple
   comparisons beyond a strict threshold.
 - **Money is whole pounds.** No pence, no currencies.
+- **Recurrence runs at lab speed.** Episodes end after 10 clean requests or 120 quiet seconds;
+  a real estate would use days and a wall clock. "Open" is judged in log time, because a lab
+  is bursty. Latency-only faults (E) do not create a fingerprint: nothing fails, it is just slow.
+- **The agent's actions are mostly simulated.** Only webhook replay really does something;
+  "open incident" and "page on-call" write to the audit log. The `llm` engine is optional and
+  the hosted demo runs without a key.
 
 Why existing tools were reused or not is recorded in [REUSE_DECISION.md](REUSE_DECISION.md).

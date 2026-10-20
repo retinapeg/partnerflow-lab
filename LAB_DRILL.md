@@ -164,6 +164,28 @@ difference-in-differences −11.5, true −9.6.
 causal. For a partner-level change I'd use the other partners as the control, which is what the
 difference-in-differences does here."
 
+## 11. The one that keeps coming back
+
+**Do:** Recurring issues → pick *Revoked API key (cedar) comes back after a fix* → **Replay it**.
+Read the table, then section 2, then **Run the agent on this issue**.
+
+**See:** `cedar · 401 api_key_revoked`: 2 episodes, status *active*; the latest episode fails all
+of cedar's exposed requests against a baseline near zero, tail probability far below the 3-sigma
+threshold. The intended rule R-101 is also in the table, as *watch* or *background*: it recurs,
+but each episode is in line with the history before it, so it is never flagged. The agent says
+ACT, owner us, drafts the partner message with the numbers filled in, and opens an incident; the
+audit log keeps the evidence pack.
+
+**Diagnose:** recurrence is the signal that the fix was a clear-down, not a fix. The second
+message to the partner should ask for a permanent change (a key-rotation calendar), not another
+reset.
+
+**Say:** "I fingerprint every failure by partner, status and reason, cut the history into
+episodes by quiet gaps, and test each episode against the history before it, with recognised
+incidents taken out so a recurrence isn't mistaken for the new normal. The agent only acts on
+flagged episodes, only with the runbook's one action, and logs every decision with its evidence.
+That's how I'd stop the same ticket costing an hour every fortnight."
+
 ---
 
 ## Cold drill (no answers in front of you; answers below)

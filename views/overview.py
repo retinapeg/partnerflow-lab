@@ -11,7 +11,10 @@ GUIDE = [
     ("Fault injection", "Switch on a failure, send traffic, and watch the API misbehave."),
     ("Release simulation", "The main story: a release breaks something, you find it and fix it."),
     ("Incident investigation", "Dig through recorded requests to find who failed and why."),
+    ("Recurring issues", "Which failures keep coming back, the statistics that say so, and the "
+                         "agent that triages them."),
     ("Data science", "Funnels, partner comparison, correlation vs causation, and an A/B test."),
+    ("Broker monitoring", "Control charts and difference-in-differences at a million requests."),
 ]
 
 
@@ -25,6 +28,8 @@ def render(lab: dict) -> None:
 
     metrics = common.get_json("/metrics")
     requests, applications = metrics["requests"], metrics["applications"]
+
+    start_here(requests["total"])
 
     st.subheader("API health")
     cols = st.columns(5)
@@ -87,6 +92,28 @@ def render(lab: dict) -> None:
                "decision. That is why API errors show up directly in conversion.")
 
     show_guide()
+
+
+def start_here(recorded: int) -> None:
+    """Three steps for a first visit. Each button does the step or opens the page for it."""
+    with st.container(border=True):
+        st.write("**Start here** — three steps, about three minutes.")
+        cols = st.columns(3)
+        with cols[0]:
+            st.write("1. **Fill the lab** with healthy traffic, so there is a baseline.")
+            if recorded:
+                st.caption(f"Done: {recorded:,} requests recorded.")
+            elif st.button("Send 150 healthy journeys", key="start_fill", width="stretch"):
+                common.generate_traffic("healthy", 150, 7)
+                st.rerun()
+        with cols[1]:
+            st.write("2. **Break something**: switch a fault on and send traffic.")
+            st.button("Fault injection", key="start_break", on_click=common.go_to,
+                      args=("Fault injection",), width="stretch")
+        with cols[2]:
+            st.write("3. **See what recurs** and let the agent triage it.")
+            st.button("Recurring issues", key="start_recur", on_click=common.go_to,
+                      args=("Recurring issues",), width="stretch")
 
 
 def show_guide() -> None:

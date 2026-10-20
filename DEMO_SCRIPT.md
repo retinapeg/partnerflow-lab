@@ -40,6 +40,14 @@ If the browser misbehaves, `.venv/bin/python demo.py` prints the same story in t
   record, a plain-English explanation of the status code, the rest of that customer's
   journey, and the identical request in the other runs.
 
+- **Recurring issues** (the "same ticket every fortnight" minute): pick *Revoked API key
+  (cedar) comes back after a fix* → **Replay it**. The table shows `cedar · 401` with two
+  episodes, status *active*, and the intended rule R-101 sitting in *watch/background* because
+  each of its episodes is in line with the history before it. **Run the agent on this issue**:
+  ACT, owner us, the partner message with the numbers in it, an incident opened, the evidence
+  pack in the audit log. "It only acts on flagged episodes, only with the runbook's one action,
+  and never touches a switch."
+
 - **Broker monitoring** (the data-science minute): "Rows stored 1,680, requests
   represented ~1,000,000." Section 2: the control chart for Meridian with eight red dots on
   day 10; "1,680 hours tested, 2.3 false flags expected by chance." Section 4: the evidence
@@ -58,3 +66,5 @@ If the browser misbehaves, `.venv/bin/python demo.py` prints the same story in t
 | What does the 95% interval mean? | If the experiment were repeated many times, about 95% of intervals built this way would contain the true effect. `compare_proportions()` in analytics.py. |
 | How was the fix verified? | `test_regression_is_resolved_by_the_targeted_fix` in tests/test_release.py checks both directions: eligible products restored, intended rule still enforced. |
 | What would you change for production? | README "Known limitations": hashed keys, HTTPS, asynchronous logging, real webhook delivery with backoff, a shared rate-limit store. |
+| How do you stop the same issue costing an hour every time? | *Recurring issues*: fingerprint → episodes → each episode tested against the history before it (recognised incidents left out) → the agent acts within the runbook and logs the evidence. `recurrence.py`, `runbooks.py`, `triage.py`. |
+| Why doesn't the agent flag the intended rule R-101? | Its refusals are in the baseline: a steady share, never distinct from the history before each episode. `test_a_steady_background_rate_is_never_an_incident` in tests/test_recurrence.py. |

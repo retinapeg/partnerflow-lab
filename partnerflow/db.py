@@ -75,9 +75,26 @@ CREATE TABLE IF NOT EXISTS lab_config (
     key    TEXT PRIMARY KEY,
     value  TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS triage_log (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp        TEXT    NOT NULL,
+    fingerprint      TEXT    NOT NULL,
+    partner_id       TEXT    NOT NULL,
+    status_code      INTEGER NOT NULL,
+    failure_reason   TEXT    NOT NULL,
+    episode          INTEGER NOT NULL,
+    episode_start    TEXT    NOT NULL,
+    occurrences      INTEGER NOT NULL DEFAULT 0,
+    mode             TEXT    NOT NULL,
+    status           TEXT    NOT NULL DEFAULT 'act',
+    dry_run          INTEGER NOT NULL DEFAULT 0,
+    decision         TEXT    NOT NULL DEFAULT '{}',
+    actions          TEXT    NOT NULL DEFAULT '[]'
+);
 """
 
-DATA_TABLES = ("webhook_deliveries", "request_log", "applications", "customers")
+DATA_TABLES = ("triage_log", "webhook_deliveries", "request_log", "applications", "customers")
 
 
 def now_iso() -> str:
@@ -122,8 +139,9 @@ def reset_data(keep_config: bool = False) -> None:
         for table in DATA_TABLES:
             conn.execute(f"DELETE FROM {table}")
         # Restart the ID counters so a reset lab always starts at customer 1.
+        placeholders = ", ".join("?" for _ in DATA_TABLES)
         conn.execute(
-            "DELETE FROM sqlite_sequence WHERE name IN (?, ?, ?, ?)", DATA_TABLES
+            f"DELETE FROM sqlite_sequence WHERE name IN ({placeholders})", DATA_TABLES
         )
         if not keep_config:
             conn.execute("DELETE FROM lab_config")
@@ -325,3 +343,70 @@ def update_webhook_delivery(delivery_id: int, attempts: int, status: str,
             "last_status_code = ?, failure_reason = ? WHERE id = ?",
             (attempts, status, last_status_code, failure_reason, delivery_id),
         )
+
+
+# --- Triage log (every decision the agent makes) ----------------------------
+
+def insert_triage_entry(entry: dict) -> int:
+    with connect() as conn:
+        cursor = conn.execute(
+            "INSERT INTO triage_log (timestamp, fingerprint, partner_id, status_code, "
+            "failure_reason, episode, episode_start, occurrences, mode, status, dry_run, "
+            "decision, actions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                now_iso(),
+                entry["fingerprint"],
+                entry["partner_id"],
+                entry["status_code"],
+                entry["failure_reason"],
+                entry["episode"],
+                entry["episode_start"],
+                int(entry.get("occurrences", 0)),
+                entry["mode"],
+                entry.get("status", "act"),
+                int(bool(entry.get("dry_run", False))),
+                json.dumps(entry["decision"]),
+                json.dumps(entry.get("actions", [])),
+            ),
+        )
+        return int(cursor.lastrowid)
+
+
+def _triage_row_to_dict(row: sqlite3.Row) -> dict:
+    entry = dict(row)
+    entry["dry_run"] = bool(entry["dry_run"])
+    entry["decision"] = json.loads(entry["decision"])
+    entry["actions"] = json.loads(entry["actions"])
+    return entry
+
+
+def list_triage_log(limit: int = 100, fingerprint: str | None = None) -> list[dict]:
+    """Newest first."""
+    sql, params = "SELECT * FROM triage_log", []
+    if fingerprint:
+        sql += " WHERE fingerprint = ?"
+        params.append(fingerprint)
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+    with connect() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [_triage_row_to_dict(row) for row in rows]
+
+
+def triaged_episodes() -> dict[str, set]:
+    """What the agent has already looked at, so a pass is idempotent.
+
+    'acted': (fingerprint, episode_start) pairs with a real "act" decision.
+    'watched': (fingerprint, episode_start, occurrences) triples with a "watch"
+    decision; the agent looks again only once the episode has grown.
+    Dry runs never count."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT fingerprint, episode_start, occurrences, status FROM triage_log "
+            "WHERE dry_run = 0 AND status IN ('act', 'watch')"
+        ).fetchall()
+    return {
+        "acted": {(r["fingerprint"], r["episode_start"]) for r in rows if r["status"] == "act"},
+        "watched": {(r["fingerprint"], r["episode_start"], r["occurrences"]) for r in rows
+                    if r["status"] == "watch"},
+    }
