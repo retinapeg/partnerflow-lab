@@ -19,6 +19,20 @@ Two halves, one lab:
   Bayesian model's partner-level intervals cover 92.5% of true rates. The results table in
   [`experiments/README.md`](experiments/README.md) is generated from the passing tests.
 
+## Run it online (nothing to install)
+
+The same lab runs as one container: the API on a private port, the dashboard on the public one.
+Shared state, so if someone else has faults switched on, use **Reset the lab** in the sidebar.
+
+- **Render (free tier):** fork or use this repo → Render → *New* → *Blueprint* → pick the repo.
+  `render.yaml` does the rest. First load after idle takes ~30 s.
+- **Hugging Face Spaces (free):** create a *Docker* Space, push this repo to it. The `Dockerfile`
+  serves the dashboard on port 7860.
+- Any Docker host: `docker build -t partnerflow-lab . && docker run -p 7860:7860 partnerflow-lab`.
+
+The hosted version exposes the dashboard only; the interactive API docs are a local-run feature.
+To learn the lab hands-on, follow [LAB_DRILL.md](LAB_DRILL.md) (do → see → diagnose → say).
+
 ## Run it
 
 ```bash

@@ -1,0 +1,10 @@
+# One-click deploy on Render: New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: partnerflow-lab
+    runtime: docker
+    plan: free
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: PARTNERFLOW_API_PORT
+        value: "8010"

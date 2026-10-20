@@ -1,0 +1,9 @@
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+data/*.db
+data/*.sqlite*
+experiments/.venv
+experiments/.cache
+experiments/data/*.parquet
