@@ -166,6 +166,10 @@ def test_release_story_end_to_end_through_the_dashboard(api):
 
     text = text_of(app)
     assert "The refusal rate for POST /applications rose by" in text
+    assert "Deterministic replay" in text
+    assert "population treatment effect" in text
+    assert "The interval excludes zero" not in text
+    assert "95% interval" not in " ".join(str(m.delta) for m in app.metric)
     assert "it also refusing **credit_line, term_loan**" in text
 
     click(app, "Apply patch v1.1.1")
@@ -242,6 +246,8 @@ def test_data_science_page_recomputes_when_the_inputs_change(api):
     assert default["Sample size"] == "12,000"
     assert default["Control conversion"] == "67.0%"
     assert default["Absolute treatment effect"] == "+5.5 pts"
+    assert "lowest conditional conversion" in text_of(app)
+    assert "highest-value intervention" in text_of(app)
 
     app.select_slider[0].set_value(1000).run()         # a much smaller sample
     small = tiles()
@@ -265,6 +271,10 @@ def test_broker_monitoring_page_detects_the_built_in_incident(api):
     assert tiles["Rows stored"] == "1,680"
     assert int(tiles["Requests represented"].replace(",", "")) > 950_000
     assert tiles["Peak z-score"].endswith("σ")
+    assert "Completion shortfall vs baseline" in tiles
+    assert "Estimated lost applications" not in tiles
+    assert "Neither number establishes incremental lost lending" in text_of(app)
+    assert "Cannibalisation" in text_of(app)
 
     # Switching the built-in incident off leaves only chance flags, if any.
     built_in = next(t for t in app.toggle if t.label == "Built-in incident")

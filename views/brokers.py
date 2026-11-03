@@ -299,7 +299,7 @@ def investigate(incident: pd.Series, chart: pd.DataFrame, applications: pd.DataF
 def lending(incident: pd.Series, applications: pd.DataFrame, hourly: pd.DataFrame,
             baseline_hours: int) -> None:
     broker, start, end = incident["broker"], int(incident["start_hour"]), int(incident["end_hour"])
-    st.header("5. What did it cost? Reliability and lending outcomes")
+    st.header("5. Reliability and lending outcomes: descriptive impact")
     evidence = monitoring.completion_evidence(applications, hourly, broker, start, end, baseline_hours)
     before, during = evidence["affected_before"], evidence["affected_during"]
 
@@ -308,8 +308,16 @@ def lending(incident: pd.Series, applications: pd.DataFrame, hourly: pd.DataFram
     common.tile(cols[1], "Completion during", common.pct(during["rate"]), f"{during['n']:,} applications")
     common.tile(cols[2], "Share that hit an error", common.pct(evidence["exposure_during"]),
                 f"baseline {common.pct(evidence['exposure_before'])}")
-    common.tile(cols[3], "Estimated lost applications", f"{evidence['lost_applications']:.0f}",
-                f"≈ £{evidence['lost_loan_value'] / 1e6:.1f}m requested")
+    common.tile(cols[3], "Completion shortfall vs baseline", f"{evidence['completion_shortfall']:.0f}",
+                f"Requested-amount proxy ≈ £{evidence['requested_amount_proxy'] / 1e6:.2f}m")
+    st.caption("Descriptive calculation: positive raw before/during rate decline × applications "
+               "during the window. The amount proxy multiplies that shortfall by median requested "
+               "amount. Neither number establishes incremental lost lending, revenue or profit.")
+    st.write("**Commercial success:** incremental risk-adjusted contribution = incremental revenue "
+             "− incremental expected credit losses − incremental operating costs − incremental "
+             "intervention costs. All these commercial inputs are **unknown**. Cannibalisation "
+             "of other lending and changes in borrower risk are **unknown** and must be measured. "
+             "This simulation cannot justify a commercial rollout.")
 
     st.write("**Three ways to ask whether the failures caused the drop, weakest to strongest:**")
     estimates = pd.DataFrame([
@@ -335,20 +343,22 @@ def lending(incident: pd.Series, applications: pd.DataFrame, hourly: pd.DataFram
             f"2. **Before vs during, same broker.** Completion fell by "
             f"{common.points(evidence['naive_change'])} (95% interval "
             f"{common.points(evidence['naive_ci'][0])} to {common.points(evidence['naive_ci'][1])}). "
-            "Better: the broker's customer mix did not change in eight hours. But anything else "
-            "that changed at the same time is still mixed in."
+            "This compares different customers. Changes in mix or other concurrent events "
+            "could also explain a real-world decline."
         )
         st.write(
             f"3. **Difference-in-differences.** The other brokers' completion moved by "
             f"{common.points(evidence['others_during']['rate'] - evidence['others_before']['rate'])} over the "
             f"same hours. Subtracting that gives {common.points(evidence['did'])} (interval "
             f"{common.points(evidence['did_ci'][0])} to {common.points(evidence['did_ci'][1])}). "
-            "This nets out anything that affected everyone at that time. It is the strongest "
-            "evidence available without an experiment."
+            "This removes a common additive change. A causal reading requires parallel untreated "
+            "trends, stable composition and no spillovers; the comparison alone does not establish them."
         )
         st.write(
             f"**The truth** built into the simulator for these customers is "
-            f"{common.points(evidence['truth'])}. Estimate 3 brackets it. Within the broker, hour "
+            f"{common.points(evidence['truth'])}. The DiD interval "
+            f"{'contains' if evidence['did_ci'][0] <= evidence['truth'] <= evidence['did_ci'][1] else 'misses'} "
+            "that value. Within the broker, hour "
             f"by hour, the correlation is only r = {evidence['within_broker_r']:.2f}: with a few "
             "dozen applications an hour, single hours are too noisy to show it."
         )

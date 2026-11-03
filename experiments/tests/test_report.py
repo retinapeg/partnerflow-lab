@@ -9,7 +9,7 @@ from analysis.report import END, METHODS, START, render, write_report
 def evidence():
     # Formatting fixtures only; actual README evidence comes from estimator tests.
     return {"exitstatus": 0, "seed": 0, "tests_collected": 6, "rows": [
-        {"method": method, "estimate": 2.5, "truth": 2.0, "bias": 0.5,
+        {"method": method, "estimate": 2.5, "truth": 2.0, "estimation_error": 0.5,
          "ci95": [1.0, 3.0], "metadata": {
              "calibration94": 0.95, "max_rhat": 1.01,
              "min_bulk_ess": 500, "divergences": 0,
@@ -17,7 +17,7 @@ def evidence():
     ]}
 
 
-@pytest.mark.parametrize("failure", ["failed", "partial", "duplicate", "nonfinite", "bias"])
+@pytest.mark.parametrize("failure", ["failed", "partial", "duplicate", "nonfinite", "estimation_error"])
 def test_reject_unusable_evidence(evidence, failure):
     if failure == "failed":
         evidence["exitstatus"] = 1
@@ -28,7 +28,7 @@ def test_reject_unusable_evidence(evidence, failure):
     elif failure == "nonfinite":
         evidence["rows"][0]["estimate"] = float("nan")
     else:
-        evidence["rows"][0]["bias"] = 999
+        evidence["rows"][0]["estimation_error"] = 999
     with pytest.raises(ValueError):
         render(evidence)
 

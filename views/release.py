@@ -104,13 +104,14 @@ def render(lab: dict) -> None:
         common.tile(cols[1], "Refused after release", common.pct(change["rate_b"]),
                     f"{change['successes_b']} of {change['n_b']} applications")
         common.tile(cols[2], "Change", common.points(change["difference"]),
-                    f"95% interval {common.points(change['ci_low'])} to {common.points(change['ci_high'])}")
-        if change["ci_low"] > 0:
+                    "Observed difference on replayed requests")
+        st.caption("Deterministic replay: this checks functional regressions on these requests. "
+                   "No sampling confidence interval or population treatment effect is claimed.")
+        if change["difference"] > 0:
             st.error(f"The refusal rate for POST /applications rose by "
-                     f"{common.points(change['difference'])} ({common.p_value_text(change['p_value'])}). "
-                     "The interval excludes zero, so this is not noise.")
+                     f"{common.points(change['difference'])} on the recorded traffic.")
         else:
-            st.success("No clear increase in refusals between the two runs.")
+            st.success("No observed increase in refusals between the two runs.")
         rates = pd.DataFrame([{"run": label, "refusal rate": failure_rate(posts, label)["rate"]}
                               for label in common.RUN_ORDER if have[label]])
         st.altair_chart(charts.bars(rates, "run", "refusal rate", domain=[0, 1],
@@ -118,10 +119,10 @@ def render(lab: dict) -> None:
         detected = analytics.detect_release_changes(log)
         flagged = detected[detected["flagged"] & (detected["change"] > 0)]
         if not flagged.empty:
-            st.write("Automatic check across every endpoint (flagged = significant rise):")
-            common.show_table(common.with_p_text(flagged)[
+            st.write("Automatic check across every endpoint (flagged = observed increase):")
+            common.show_table(flagged[
                                   ["request", "from_release", "to_release",
-                                   "failure_rate_before", "failure_rate_after", "p_value"]],
+                                   "failure_rate_before", "failure_rate_after"]],
                               percent_columns=("failure_rate_before", "failure_rate_after"))
 
     # ---- Step 5 --------------------------------------------------------------
@@ -156,11 +157,6 @@ def render(lab: dict) -> None:
                                            y_order=list(config.PRODUCTS)), width="stretch")
             st.caption("Each cell is the share of applications refused, for one product and "
                        "one amount band, after the release.")
-            _, test = analytics.failure_concentration(after_posts.dropna(subset=["amount_band"]),
-                                                      "amount_band")
-            if test["p_value"] is not None:
-                st.caption(f"Chi-square test that every amount band fails at the same rate: "
-                           f"{common.p_value_text(test['p_value'])}. The concentration is not chance.")
         if unexpected:
             st.error(f"The release notes say R-204 applies to **{config.R204_PRODUCT}** only. "
                      f"The log shows it also refusing **{', '.join(unexpected)}**. "

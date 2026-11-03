@@ -1,0 +1,78 @@
+{
+  "seed": 0,
+  "exitstatus": 0,
+  "tests_collected": 66,
+  "rows": [
+    {
+      "method": "Randomised A/B: repeat",
+      "estimate": 4.124156702986554,
+      "ci95": [
+        3.0435133106023735,
+        5.203421747240751
+      ],
+      "truth": 4.0,
+      "estimation_error": 0.12415670298655357,
+      "metadata": {}
+    },
+    {
+      "method": "TWFE DiD: completion",
+      "estimate": 5.550313833578518,
+      "ci95": [
+        4.372980880893575,
+        6.727646786263462
+      ],
+      "truth": 6.0,
+      "estimation_error": -0.44968616642148174,
+      "metadata": {}
+    },
+    {
+      "method": "TWFE DiD: drawdown",
+      "estimate": 2.165144250220364,
+      "ci95": [
+        1.393960902817597,
+        2.9363275976231313
+      ],
+      "truth": 2.0,
+      "estimation_error": 0.16514425022036416,
+      "metadata": {}
+    },
+    {
+      "method": "Hierarchical: mean baseline",
+      "estimate": 21.152823596086737,
+      "ci95": [
+        20.50826633128239,
+        21.799510879581646
+      ],
+      "truth": 20.783337611444093,
+      "estimation_error": 0.3694859846426439,
+      "metadata": {
+        "calibration94": 0.925,
+        "max_rhat": 1.0028898325992506,
+        "min_bulk_ess": 5113.556297616495,
+        "divergences": 0
+      }
+    },
+    {
+      "method": "Naive before/after: completion",
+      "estimate": 9.79172196859237,
+      "ci95": [
+        9.257465935740127,
+        10.325978001444613
+      ],
+      "truth": 6.0,
+      "estimation_error": 3.7917219685923698,
+      "metadata": {}
+    },
+    {
+      "method": "Naive before/after: drawdown",
+      "estimate": 6.086179756212107,
+      "ci95": [
+        5.6030638917021465,
+        6.569295620722067
+      ],
+      "truth": 2.0,
+      "estimation_error": 4.086179756212107,
+      "metadata": {}
+    }
+  ]
+}

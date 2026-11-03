@@ -1,60 +1,50 @@
-# Three-minute demo
+# Three-minute review: a decision, its evidence, and working software
 
 > Synthetic data. Fictional lending simulation. Not affiliated with iwoca.
 
-Each row is: what to click, what appears, and the one fact worth saying. The numbers are
-what the lab produces with its defaults (150 journeys, seed 7). They are the same every
-time after a reset, so you can rehearse against them.
+## Prepare before the clock starts
 
-## Before you start
+1. From `experiments/`, run `./reproduce.sh`. Open
+   `PREQUALIFICATION_DECISION_BRIEF.md` and `VALIDATION_SUMMARY.md` in the editor.
+   Keep `results/drawdown_replications.csv` available for inspection. The documents
+   are generated from actual results; do not type or rehearse invented numbers.
+2. From the repository root, run `./start.sh`. Open http://127.0.0.1:8510.
+   The experiments API is optional for this walkthrough; its results are shown
+   in existing Markdown files, not an unimplemented dashboard.
+3. In a **disposable demo lab**, run `.venv/bin/python demo.py` against that API.
+   **This resets its recorded data.** It sends the three seeded runs, applies the
+   patch and prints observed counts. Use a separate `PARTNERFLOW_DB` path if you
+   want to preserve a working lab. The API and CLI must use the same path.
+4. Open dashboard tabs on **Data science**, **Broker monitoring** and
+   **Release simulation**. Use the defaults: journey seed 42 / 12,000 rows;
+   broker seed 11 / 14 days / seven-day baseline; release seed 7 / 150 journeys.
+5. Run `.venv/bin/python -m pytest -q` in advance and retain its actual output,
+   alongside the experiment test output. Do not wait for tests or MCMC on camera.
 
-1. `./start.sh` and wait for "PartnerFlow Lab is running".
-2. Open http://127.0.0.1:8510.
-3. Sidebar → **Reset the lab** → **Reset everything**.
+## The demonstration
 
-If the browser misbehaves, `.venv/bin/python demo.py` prints the same story in the terminal.
+| Time | Show or do | Say |
+|---|---|---|
+| 0:00–0:30 | **Data science**, conversion funnel; then **Broker monitoring**, section 5 | “The question is whether prequalification merits a real controlled experiment. A funnel identifies where customers leave. A low conversion rate may reflect appropriate credit selection. The broker's completion shortfall and requested-amount proxy describe a change; neither establishes lost profit.” |
+| 0:30–1:00 | Open **PREQUALIFICATION_DECISION_BRIEF.md**, decision and seed-0 evidence | “All of this evidence is simulated. Prequalification has an imposed +2-point drawdown effect. The existing DiD estimates +2.17 points, with a 95% interval of 1.39 to 2.94. This supports testing an analytical approach and a business hypothesis, not forecasting real uplift.” |
+| 1:00–1:50 | Open **VALIDATION_SUMMARY.md**, protocol and two-row table; briefly show the CSV | “The naive estimate is +6.09 points. Size-related rollout and time trends confound it. We kept all seeds 1000–1099 and used the same estimator in both scenarios. Read the actual baseline and violation bias, RMSE and covered-out-of-100 counts here. The violation adds one predeclared untreated trend favouring larger partners; the true treatment effect stays +2. Coverage itself is uncertain. The separate Bayesian model pools baseline partner rates; its single-seed coverage does not validate causal effects.” |
+| 1:50–2:30 | **Release simulation**, recorded three-run table and matched failures. In **API playground**, click *Send request* for the default customer, choose `POST /applications`, then *Send request*. Show its response and request ID, the **Broker monitoring** Meridian incident, and saved test output | “This is functioning software. The same 150 cases produced 6, 41 and 16 refusals. The patch restores eligible products while retaining the intended invoice-finance control. Replayed cases provide functional evidence, so there is no population confidence interval. Monitoring also identifies the seeded incident. These are the actual passing API, dashboard and analysis checks.” |
+| 2:30–3:00 | Return to the brief's commercial criterion and recommendation | “Recommend a real experiment only after agreeing eligibility, randomisation, outcome follow-up and credit-risk guardrails. Revenue, expected credit losses, operating costs, intervention costs, cannibalisation and borrower-risk changes are unknown. Rollout requires positive incremental risk-adjusted contribution and acceptable risk. Synthetic evidence cannot authorise it.” |
 
-## The demo
+The release runs are prepared before filming; the playground requests are sent live.
+Do not imply that replayed results are a live randomised customer experiment.
 
-| Time | Page and click | What appears | The fact to state |
-|---|---|---|---|
-| 0:00 | **Overview** | API status "Up", release v1.0.0, 0 requests | The dashboard is only a client. It asked the API's `/health` endpoint. |
-| 0:15 | **API playground** → *Send request* | `POST /customers` returns 201 with customer id 1 | The request went over HTTP to the API, which stored a row in SQLite. |
-| 0:25 | Request → `POST /applications` → *Send request* | 201, `"status": "approved"`, an X-Request-ID | Every response carries a request ID. "What the API recorded" shows the log row for it. |
-| 0:45 | **Release simulation** → *Generate 'before-release' traffic* | 150 applications sent, 6 refused (4.0%) | The baseline. Those 6 are legitimate: amounts over the product limit. |
-| 0:55 | *Activate release v1.1.0* | Release notes: R-204 applies to `invoice_finance` only | The notes are the claim. The log will show what actually happened. |
-| 1:05 | *Generate 'after-release' traffic* | Refused 4.0% → 27.3%, change +23.3 pts, 95% interval +15.5 to +31.1 | Same seed, so identical requests. The only thing that changed is the release. |
-| 1:25 | Step 5 table, open one request | 35 applications accepted before, refused after. All `rule_R204_amount_band` | Because the traffic is identical, runs can be matched request by request. |
-| 1:45 | Step 6 grid | The 25k-50k column is 100% refused for all three products | The notes said one product. The data shows three. That mismatch is the bug. |
-| 2:00 | *Read the rule's source code* | The `if hotfix:` branch checks the product. The `else:` branch does not | The cause, in one line of `rules.py`. |
-| 2:10 | Step 7 → *Apply patch v1.1.1* | Sidebar shows v1.1.1 | Rolling back or disabling the rule would remove an intended control. The patch fixes only the bug. |
-| 2:25 | *Generate 'after-fix' traffic* | Term loans and credit lines: 3 → 28 → 3 refused. Invoice finance: 3 → 13 → 13 | Eligible products are back to baseline. The intended rule is still enforced. |
-| 2:40 | **Data science** → sections 3 and 4 | Naive −18.0 pts, adjusted −11.0, true −12.2. A/B: +5.5 pts, interval +3.9 to +7.2 | The naive figure is a correlation inflated by application size. The A/B test is randomised, so its difference is causal. |
+## Optional technical follow-up, outside the three minutes
 
-## If you have another minute
-
-- **Fault injection** → switch on *A. Authentication failure* → *Send POST /customers*
-  as cedar → 401 `api_key_revoked`. Switch it off → 201. The switch changed the API's
-  behaviour, not the dashboard's display: the same curl command gives the same result.
-- **Incident investigation** → section 4 → click any failed row. You get the full
-  record, a plain-English explanation of the status code, the rest of that customer's
-  journey, and the identical request in the other runs.
-
-- **Broker monitoring** (the data-science minute): "Rows stored 1,680, requests
-  represented ~1,000,000." Section 2: the control chart for Meridian with eight red dots on
-  day 10; "1,680 hours tested, 2.3 false flags expected by chance." Section 4: the evidence
-  panel (14.4% vs 3.9% expected, 1,003 excess failures, timeouts 45% → 84% of failures,
-  p95 latency 460 → 1,170 ms, other brokers flat). Section 5: before-vs-during −10.9 pts,
-  difference-in-differences −11.5 pts, true effect −9.6 pts.
-
-## Questions to be ready for, and where the answer lives
-
-| Question | Where to look |
-|---|---|
-| How does switching a release in the dashboard change the API? | `set_release()` in main.py writes to the `lab_config` table. `record_request()` reads that table on every request. |
-| How do you know a failure is the API's fault or the caller's? | Status class: 4xx caller, 5xx API. Then `failure_reason`. README table "Where different HTTP errors originate". |
-| Why 422 and not 400 for a refused application? | The JSON was understood but could not be processed. FastAPI uses 422 for validation, and the rules follow the same convention. |
-| Why is the comparison fair? | `build_journeys()` in traffic.py: same seed, same journeys. `test_same_seed_gives_identical_journeys` proves it. |
-| What does the 95% interval mean? | If the experiment were repeated many times, about 95% of intervals built this way would contain the true effect. `compare_proportions()` in analytics.py. |
-| How was the fix verified? | `test_regression_is_resolved_by_the_targeted_fix` in tests/test_release.py checks both directions: eligible products restored, intended rule still enforced. |
-| What would you change for production? | README "Known limitations": hashed keys, HTTPS, asynchronous logging, real webhook delivery with backoff, a shared rate-limit store. |
+- **Release mechanics:** matched requests locate R-204's missing product check;
+  patching it retains the intended invoice-finance restriction. Inspect
+  `partnerflow/rules.py` and `tests/test_release.py`.
+- **Causal assumptions:** homogeneous effects, parallel untreated trends,
+  no anticipation or spillovers, stable composition/measurement, and a justified
+  partner-7 launch control. The violation is deliberately omitted from the fitted model.
+- **Bayesian work:** the generated methods table reports baseline partial pooling,
+  credible intervals and sampler diagnostics. It is not a partner treatment-effect model.
+- **Reproducibility:** `experiments/results/` stores the seed-level results and
+  hashes; `cd experiments && ./reproduce.sh` regenerates them without manual repairs.
+- **Operational fallback:** `.venv/bin/python demo.py` demonstrates the release
+  story against a running API; it does not run the scientific validation.

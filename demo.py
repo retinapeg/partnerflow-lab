@@ -41,9 +41,8 @@ def main() -> None:
               f"{int(eligible['failed'].sum()):>18}{int(invoice['failed'].sum()):>17}")
 
     change = analytics.compare_failure_rates(posts, "run_label", "before-release", "after-release")
-    print(f"\nRegression: {change['difference'] * 100:+.1f} points "
-          f"(95% interval {change['ci_low'] * 100:+.1f} to {change['ci_high'] * 100:+.1f}, "
-          f"p = {change['p_value']:.2g})")
+    print(f"\nObserved regression: {change['difference'] * 100:+.1f} points")
+    print("Deterministic replay: functional evidence on these requests, not population inference.")
 
     broke = analytics.paired_flips(log, "before-release", "after-release")
     print(f"Requests accepted before and refused after the release: {len(broke)}")

@@ -145,23 +145,29 @@ def error_rates(requests: pd.DataFrame, by: str | list[str]) -> pd.DataFrame:
 
 
 def compare_failure_rates(requests: pd.DataFrame, column: str, before, after) -> dict:
-    """Did the failure rate change between two values of `column`?
+    """Describe recorded failure rates; no population sampling model is assumed.
 
-    Example: compare_failure_rates(log, "run_label", "before-release", "after-release")
+    In the release demo these are deterministic replays of identical journeys.
+    Matching identifies functional regressions; it does not make the requests
+    independent random samples from a customer population. No CI or p-value.
     """
     a = requests[requests[column] == before]
     b = requests[requests[column] == after]
-    result = compare_proportions(int(a["failed"].sum()), len(a), int(b["failed"].sum()), len(b))
-    result.update(column=column, before=before, after=after)
-    return result
+    if a.empty or b.empty:
+        raise ValueError("Both groups need at least one recorded request.")
+    return {
+        "n_a": len(a), "successes_a": int(a.failed.sum()), "rate_a": float(a.failed.mean()),
+        "n_b": len(b), "successes_b": int(b.failed.sum()), "rate_b": float(b.failed.mean()),
+        "difference": float(b.failed.mean() - a.failed.mean()),
+        "column": column, "before": before, "after": after,
+    }
 
 
-def detect_release_changes(requests: pd.DataFrame, alpha: float = 0.01) -> pd.DataFrame:
-    """Compare each release with the one before it, per endpoint.
+def detect_release_changes(requests: pd.DataFrame) -> pd.DataFrame:
+    """Describe each release against the previous release, per endpoint.
 
-    Releases are ordered by when they first appear in the log. A change is
-    flagged when the p-value is below `alpha`. With several endpoints tested
-    at once, a strict alpha keeps false alarms down.
+    A flag means an observed increase, not statistical significance. For mixed
+    traffic even its attribution to the release requires investigation.
     """
     if requests.empty:
         return pd.DataFrame()
@@ -173,15 +179,13 @@ def detect_release_changes(requests: pd.DataFrame, alpha: float = 0.01) -> pd.Da
             b = group[group["release_version"] == current]
             if len(a) == 0 or len(b) == 0:
                 continue
-            result = compare_proportions(int(a["failed"].sum()), len(a),
-                                         int(b["failed"].sum()), len(b))
+            result = compare_failure_rates(group, "release_version", previous, current)
             rows.append({
                 "request": request_name, "from_release": previous, "to_release": current,
                 "requests_before": result["n_a"], "failure_rate_before": result["rate_a"],
                 "requests_after": result["n_b"], "failure_rate_after": result["rate_b"],
-                "change": result["difference"], "ci_low": result["ci_low"],
-                "ci_high": result["ci_high"], "p_value": result["p_value"],
-                "flagged": bool(result["p_value"] < alpha),
+                "change": result["difference"],
+                "flagged": bool(result["difference"] > 0),
             })
     return pd.DataFrame(rows)
 

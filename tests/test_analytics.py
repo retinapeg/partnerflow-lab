@@ -179,8 +179,13 @@ def test_error_rates_by_group():
 def test_compare_failure_rates_between_releases():
     result = analytics.compare_failure_rates(request_frame(), "release_version", "v1", "v2")
     assert result["difference"] == pytest.approx(0.35)
-    assert result["ci_low"] > 0.2
-    assert result["p_value"] < 1e-6
+    assert (result["n_a"], result["n_b"]) == (100, 100)
+    assert not {"ci_low", "ci_high", "p_value", "standard_error"} & result.keys()
+
+
+def test_descriptive_release_comparison_requires_both_groups():
+    with pytest.raises(ValueError):
+        analytics.compare_failure_rates(request_frame(), "release_version", "v1", "missing")
 
 
 def test_detect_release_changes_flags_a_real_jump_only():
@@ -190,6 +195,7 @@ def test_detect_release_changes_flags_a_real_jump_only():
     assert (row["from_release"], row["to_release"]) == ("v1", "v2")
     assert row["change"] == pytest.approx(0.35)
     assert row["flagged"]
+    assert not {"ci_low", "ci_high", "p_value"} & set(changes.columns)
 
     steady = request_frame()
     steady["failed"] = [i % 20 == 0 for i in range(len(steady))]   # 5% in both releases

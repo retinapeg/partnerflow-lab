@@ -5,6 +5,7 @@ Release B  = v1.1.0  adds rule R-204, with a bug (it ignores the product)
 B + hotfix = v1.1.1  R-204 applies to invoice_finance only, as intended
 """
 
+import pandas as pd
 import pytest
 
 from partnerflow import analytics, traffic
@@ -155,11 +156,11 @@ def test_regression_is_reproduced_with_generated_traffic(story):
     # 1. The same 150 applications were sent each time.
     assert [summaries[run]["applications_sent"] for run in ("before", "after", "fixed")] == [150] * 3
 
-    # 2. The failure rate of POST /applications rose sharply, beyond chance.
+    # 2. Describe the deterministic replay, without unsupported sampling inference.
     change = analytics.compare_failure_rates(posts, "run_label", "before-release", "after-release")
     assert change["rate_b"] > change["rate_a"] + 0.15
-    assert change["ci_low"] > 0
-    assert change["p_value"] < 0.001
+    assert change["difference"] == pytest.approx(35 / 150)
+    assert not {"ci_low", "ci_high", "p_value", "standard_error"} & change.keys()
 
     # 3. Every request that newly failed was an in-band R-204 rejection...
     flips = analytics.paired_flips(log, "before-release", "after-release")
@@ -168,6 +169,11 @@ def test_regression_is_reproduced_with_generated_traffic(story):
     assert flips["amount"].between(25_000, 50_000).all()
     # ...and it hit products the release notes said were unaffected.
     assert set(SHOULD_STAY_ELIGIBLE) <= set(flips["product"])
+    # Replaying the same finite cases twice adds no independent information.
+    duplicate = pd.concat([posts, posts], ignore_index=True)
+    repeated = analytics.compare_failure_rates(duplicate, "run_label", "before-release", "after-release")
+    assert repeated["difference"] == change["difference"]
+    assert not {"ci_low", "ci_high", "p_value"} & repeated.keys()
 
 
 def test_regression_is_resolved_by_the_targeted_fix(story):

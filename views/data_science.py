@@ -57,9 +57,12 @@ def funnel(journeys: pd.DataFrame) -> None:
     with right:
         common.show_table(table, percent_columns=("share_of_started", "step_conversion"))
     worst = table.iloc[1:].sort_values("step_conversion").iloc[0]
-    st.write(f"The biggest single loss is at **{worst['stage']}**: only "
+    st.write(f"The lowest conditional conversion is at **{worst['stage']}**: "
              f"{common.pct(worst['step_conversion'])} of journeys that reached the previous "
              "stage get this far.")
+    st.caption("Low conversion alone does not identify the highest-value intervention. "
+               "Recoverable volume, intervention cost, credit quality and expected commercial "
+               "contribution are unknown. Credit declines may be appropriate risk selection.")
 
 
 def partners(journeys: pd.DataFrame) -> None:
@@ -79,11 +82,10 @@ def partners(journeys: pd.DataFrame) -> None:
             percent_columns=("conversion", "submit_rate", "api_error_rate"))
     best = table.sort_values("conversion").iloc[-1]
     worst = table.sort_values("conversion").iloc[0]
-    overlap = worst["conversion_ci_high"] >= best["conversion_ci_low"]
     st.write(
         f"**{worst['partner']}** converts least ({common.pct(worst['conversion'])}) and "
-        f"**{best['partner']}** most ({common.pct(best['conversion'])}). Their intervals "
-        f"{'overlap, so the gap may be noise' if overlap else 'do not overlap, so the gap is real'}. "
+        f"**{best['partner']}** most ({common.pct(best['conversion'])}). These are descriptive "
+        "rankings with uncertainty, not a formal pairwise test or a causal partner effect. "
         f"But {worst['partner']} also sends much larger applications (median "
         f"{worst['median_amount']:,.0f} GBP against {best['median_amount']:,.0f}) and has more API "
         "errors. A raw partner ranking mixes all of that together. It says where to look, not why."
@@ -139,8 +141,8 @@ def experiment(journeys: pd.DataFrame) -> None:
     st.header("4. A randomised A/B experiment")
     st.write(
         "Fictional experiment: half of journeys (chosen by coin flip) see clearer inline error "
-        "messages in the application form. Because chance alone decides who is treated, the two "
-        "groups are alike in every other way, so a difference in outcome is caused by the treatment."
+        "messages in the application form. Randomisation balances other characteristics in "
+        "expectation; the estimated causal effect still includes sampling noise."
     )
     metric = st.radio("Outcome to measure", ["submitted", "funded"], horizontal=True,
                       format_func=lambda m: {"submitted": "Application submitted (primary)",
@@ -183,23 +185,23 @@ def experiment(journeys: pd.DataFrame) -> None:
 
 
 def live_log() -> None:
-    st.header("5. The same statistics on the live request log")
+    st.header("5. Descriptive monitoring of the live request log")
     log = common.load_log()
     if log.empty:
         st.caption("The request log is empty. Run the release simulation to fill it.")
         return
     rates = analytics.error_rates(log, "release_version")
     st.write("API failure rate by release, from requests the API really handled:")
-    common.show_table(rates, percent_columns=("failure_rate", "ci_low", "ci_high"))
+    common.show_table(rates.drop(columns=["ci_low", "ci_high"]), percent_columns=("failure_rate",))
     changes = analytics.detect_release_changes(log)
     flagged = changes[changes["flagged"]] if not changes.empty else changes
     if flagged.empty:
-        st.caption("No significant change between releases has been detected yet.")
+        st.caption("No observed increase between releases has been recorded yet.")
     else:
-        st.write("Significant changes between consecutive releases:")
-        common.show_table(common.with_p_text(flagged)[
+        st.write("Observed increases between consecutive releases; these are not significance tests:")
+        common.show_table(flagged[
                               ["request", "from_release", "to_release", "failure_rate_before",
-                               "failure_rate_after", "change", "p_value"]],
+                               "failure_rate_after", "change"]],
                           percent_columns=("failure_rate_before", "failure_rate_after", "change"))
     st.button("Open the incident investigation", on_click=common.go_to,
               args=("Incident investigation",))

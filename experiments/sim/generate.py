@@ -15,7 +15,19 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def generate(seed: int = 0) -> tuple[pd.DataFrame, dict]:
+def untreated_trend(partner_traffic, day, max_slope_pp: float = 0.0):
+    """One differential untreated trend, unrelated to partner 7's launch.
+
+    Starts on day 28. Slopes scale with baseline daily arrivals: small=0,
+    medium=max_slope_pp*17/57, large=max_slope_pp percentage points/day.
+    The validation protocol fixes max_slope_pp=0.1 before inspecting results.
+    """
+    if not np.isfinite(max_slope_pp) or not 0 <= max_slope_pp <= 0.1:
+        raise ValueError("Require 0 <= max_slope_pp <= 0.1 to preserve probability bounds")
+    return (max_slope_pp / 100) * (partner_traffic - 8) / 57 * np.maximum(day - 27, 0)
+
+
+def generate(seed: int = 0, *, max_slope_pp: float = 0.0) -> tuple[pd.DataFrame, dict]:
     rng = np.random.default_rng(seed)
     size = np.array(["small"] * 20 + ["medium"] * 12 + ["large"] * 8)
     traffic = np.array([8.0] * 20 + [25.0] * 12 + [65.0] * 8)
@@ -37,8 +49,13 @@ def generate(seed: int = 0) -> tuple[pd.DataFrame, dict]:
     time = seasonal + 0.0011 * np.maximum(d - 27, 0)
     shock = -0.05 * (d >= 14 * 7)
     solo = 0.03 * ((p == 7) & (d >= 8 * 7))
-    draw_rate = base[p] + time + shock + solo + 0.02 * prequal
-    complete_rate = 0.62 + 0.35 * (base[p] - 0.2) + time + shock + solo + 0.06 * prequal
+    trend = untreated_trend(traffic[p], d, max_slope_pp)
+    draw_rate = base[p] + time + shock + solo + trend + 0.02 * prequal
+    complete_rate = 0.62 + 0.35 * (base[p] - 0.2) + time + shock + solo + trend + 0.06 * prequal
+    # Never clip: clipping would silently change the imposed treatment effect.
+    if not ((draw_rate >= 0).all() and (complete_rate <= 1).all()
+            and (draw_rate + 0.21 <= complete_rate).all()):
+        raise ValueError("Invalid nested funnel probabilities")
     u = rng.random(n)
     draw = u < draw_rate
     accepted = u < draw_rate + 0.09
@@ -69,6 +86,7 @@ def generate(seed: int = 0) -> tuple[pd.DataFrame, dict]:
         "solo_launch_partner": 7, "solo_launch_week": 8,
         "prequal_start_day": {str(i): int(starts[i]) for i in range(40)},
         "partner_base_rate": {str(i): float(base[i]) for i in range(40)},
+        "untreated_trend_max_slope_pp_per_day": max_slope_pp,
     }
     return events, truth
 

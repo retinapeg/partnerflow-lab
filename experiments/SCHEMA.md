@@ -28,10 +28,17 @@
   "topup_effect_repeat_90d_pp": 4.0,
   "shock_week": 14, "shock_effect_pp": -5.0,
   "solo_launch_partner": 7, "solo_launch_week": 8,
+  "untreated_trend_max_slope_pp_per_day": 0.0,
   "prequal_start_day": {"0": 28, "1": 35, "...": "..."},
   "partner_base_rate": {"0": 0.31, "...": "..."}
 }
 ```
+
+The default untreated trend slope is zero. Drawdown validation alone sets it to
+0.1 pp/day at a 65-arrival/day partner, scaled by `(traffic - 8) / 57` and applied
+from day 28. It changes untreated stage probabilities, independently of the
+partner-7 launch; the prequalification drawdown effect remains +2 pp.
+The default data columns and API response contracts are unchanged.
 
 ## API (FastAPI, prefix /v1)
 - `GET /v1/funnel/{partner_id}` → `{partner_id, n, stages: {data_complete, offer, accepted, drawdown, repeat_90d}: {count, rate_from_previous, rate_from_start}, routed_auto_share}`
