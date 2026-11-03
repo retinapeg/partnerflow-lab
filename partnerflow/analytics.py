@@ -56,7 +56,16 @@ def load_requests(db_file: Path | None = None) -> pd.DataFrame:
         finally:
             conn.close()
 
-    extra = pd.json_normalize([json.loads(text) for text in frame["metadata"]])
+    return request_frame(frame.to_dict("records"))
+
+
+def request_frame(records: list[dict]) -> pd.DataFrame:
+    """Normalise API or SQLite log records for the same analysis functions."""
+    columns = ["id", "timestamp", "request_id", "partner_id", "method", "endpoint", "path",
+               "status_code", "latency_ms", "failure_reason", "release_version", "run_label", "metadata"]
+    frame = pd.DataFrame(records, columns=columns).sort_values("id").reset_index(drop=True)
+    extra = pd.json_normalize([json.loads(value) if isinstance(value, str) else value
+                               for value in frame["metadata"]])
     extra.index = frame.index
     frame = pd.concat([frame.drop(columns="metadata"), extra], axis=1)
     for column in ("product", "amount", "journey", "rule_id", "application_id", "customer_id"):

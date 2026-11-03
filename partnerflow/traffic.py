@@ -98,14 +98,17 @@ def _fault_share(faults: dict, name: str, partner_id: str) -> float:
     return 0.0
 
 
-def run_traffic(client: httpx.Client, journeys: list[dict], run_label: str) -> dict:
+def run_traffic(client: httpx.Client, journeys: list[dict], run_label: str,
+                seed: int | None = None) -> dict:
     """Send every journey to the API and return a summary of what came back.
 
     Each journey is up to three requests, like a real integration:
         POST /customers  ->  POST /applications  ->  GET /applications/{id}
     A journey stops at the first request that fails.
     """
-    faults = client.get("/lab/config").json()["faults"]
+    response = client.get("/lab/config")
+    response.raise_for_status()
+    faults = response.json()["faults"]
     summary = {"run_label": run_label, "journeys": len(journeys), "requests": 0,
                "failures": 0, "by_status_code": {},
                "applications_sent": 0, "applications_accepted": 0}
@@ -125,6 +128,8 @@ def run_traffic(client: httpx.Client, journeys: list[dict], run_label: str) -> d
             "X-Lab-Run": run_label,
             "X-Lab-Journey": str(journey["index"]),
         }
+        if seed is not None:
+            headers.update({"X-Lab-Seed": str(seed), "X-Lab-Count": str(len(journeys))})
         bad_share = _fault_share(faults, "bad_payloads", partner_id)
         missing_share = _fault_share(faults, "missing_resources", partner_id)
 
@@ -163,9 +168,9 @@ def generate(run_label: str, count: int = 150, seed: int = 7,
     """Build journeys from the seed and send them. Opens a client if none is given."""
     journeys = build_journeys(seed, count)
     if client is not None:
-        return run_traffic(client, journeys, run_label)
+        return run_traffic(client, journeys, run_label, seed=seed)
     with httpx.Client(base_url=config.api_url(), timeout=30) as new_client:
-        return run_traffic(new_client, journeys, run_label)
+        return run_traffic(new_client, journeys, run_label, seed=seed)
 
 
 if __name__ == "__main__":

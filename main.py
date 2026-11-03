@@ -165,6 +165,10 @@ async def record_request(request: Request, call_next):
         journey = request.headers.get("x-lab-journey", "")
         if journey.isdigit():
             meta["journey"] = int(journey)
+        for header, field in (("x-lab-seed", "replay_seed"), ("x-lab-count", "replay_count")):
+            value = request.headers.get(header, "")
+            if re.fullmatch(r"-?[0-9]{1,12}", value):
+                meta[field] = int(value)
         db.insert_request_log({
             "timestamp": db.now_iso(),
             "request_id": request_id,

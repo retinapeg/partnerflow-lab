@@ -9,7 +9,7 @@ import inspect
 import pandas as pd
 import streamlit as st
 
-from partnerflow import analytics, charts, config, rules
+from partnerflow import analytics, charts, config, replay, rules
 from views import common
 
 BEFORE, AFTER, FIXED = common.RUN_ORDER
@@ -46,15 +46,29 @@ def render(lab: dict) -> None:
     band_low, band_high = lab["r204_band"]
 
     with st.expander("Traffic settings", expanded=False):
+        if any(have.values()) and st.button("Start the story again (reset the lab)"):
+            response = common.call_api("POST", "/lab/reset")
+            response.raise_for_status()
+            st.rerun()
+        count, seed = 150, 7
+        if any(have.values()):
+            try:
+                count, seed = replay.recorded_settings(log)
+                for label in common.RUN_ORDER:
+                    if have[label]:
+                        if replay.recorded_settings(log, label) != (count, seed):
+                            raise ValueError("Recorded runs use different replay settings; reset the lab.")
+            except ValueError as exc:
+                st.error(str(exc))
+                return
         cols = st.columns(2)
-        count = cols[0].number_input("Customer journeys per run", 30, 500, value=150, step=10,
+        count = cols[0].number_input("Customer journeys per run", 1 if have[BEFORE] else 30,
+                                     max(500, count), value=count, step=10,
                                      disabled=have[BEFORE])
-        seed = cols[1].number_input("Seed", 0, 9999, value=7, disabled=have[BEFORE])
+        seed = cols[1].number_input("Seed", min(0, seed), max(9999, seed), value=seed,
+                                    disabled=have[BEFORE])
         st.caption("All three runs use the same seed, so they send exactly the same journeys. "
                    "That is what makes the comparison fair. Locked once step 1 has run.")
-        if any(have.values()) and st.button("Start the story again (reset the lab)"):
-            common.call_api("POST", "/lab/reset")
-            st.rerun()
 
     # ---- Step 1 --------------------------------------------------------------
     with step(1, "Send traffic before the release", have[BEFORE]):

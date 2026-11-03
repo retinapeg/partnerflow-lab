@@ -8,7 +8,7 @@ numbers. Useful as a rehearsal, and as a fallback if a browser misbehaves.
 
 import httpx
 
-from partnerflow import analytics, config, traffic
+from partnerflow import analytics, config, replay, traffic
 
 COUNT, SEED = 150, 7
 ELIGIBLE = [p for p in config.PRODUCTS if p != config.R204_PRODUCT]
@@ -16,17 +16,33 @@ ELIGIBLE = [p for p in config.PRODUCTS if p != config.R204_PRODUCT]
 
 def main() -> None:
     with httpx.Client(base_url=config.api_url(), timeout=30) as api:
-        api.post("/lab/reset")   # start from a clean lab so the numbers are repeatable
-        print("1. Healthy API:", api.get("/health").json())
+        def checked(method, path, **kwargs):
+            response = api.request(method, path, **kwargs)
+            response.raise_for_status()
+            return response.json()
+
+        checked("POST", "/lab/reset")   # disposable demo lab only
+        print("1. Healthy API:", checked("GET", "/health"))
 
         print("2. Traffic on v1.0.0 ...")
         traffic.generate("before-release", COUNT, SEED, api)
-        print("3. Deploy v1.1.0:", api.post("/lab/release", json={"release": "B"}).json()["version"])
+        print("3. Deploy v1.1.0:", checked("POST", "/lab/release", json={"release": "B"})["version"])
         traffic.generate("after-release", COUNT, SEED, api)
-        print("4. Apply patch:", api.post("/lab/hotfix", json={"enabled": True}).json()["version"])
+        print("4. Apply patch:", checked("POST", "/lab/hotfix", json={"enabled": True})["version"])
         traffic.generate("after-fix", COUNT, SEED, api)
 
-    log = analytics.load_requests()
+        # Each run has at most 3 * COUNT requests, safely below the API's 5000 cap.
+        # Read from the server that handled the traffic, never the CLI's DB path.
+        records = []
+        for label in replay.VERSIONS:
+            rows = checked("GET", "/lab/requests", params={"run_label": label, "limit": 3 * COUNT + 1})
+            if len(rows) > 3 * COUNT:
+                raise ValueError(f"Unexpected extra requests in '{label}'; reset the demo lab.")
+            records.extend(rows)
+        log = analytics.request_frame(records)
+        for label in replay.VERSIONS:
+            replay.validate_run(log, label, COUNT, SEED)
+
     posts = log[log["request"] == "POST /applications"]
 
     print("\nPOST /applications, identical traffic in each run:")
@@ -48,7 +64,8 @@ def main() -> None:
     print(f"Requests accepted before and refused after the release: {len(broke)}")
     print("  by product:", broke["product"].value_counts().to_dict())
     print("  reasons:   ", broke["failure_reason_after"].value_counts().to_dict())
-    print(f"  amounts:    {int(broke['amount'].min()):,} to {int(broke['amount'].max()):,} GBP")
+    if not broke.empty:
+        print(f"  amounts:    {int(broke['amount'].min()):,} to {int(broke['amount'].max()):,} GBP")
 
     left = analytics.paired_flips(log, "before-release", "after-fix")
     print(f"Still refused after the fix: {len(left)}", left["product"].value_counts().to_dict(),

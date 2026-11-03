@@ -14,7 +14,8 @@
 3. In a **disposable demo lab**, run `.venv/bin/python demo.py` against that API.
    **This resets its recorded data.** It sends the three seeded runs, applies the
    patch and prints observed counts. Use a separate `PARTNERFLOW_DB` path if you
-   want to preserve a working lab. The API and CLI must use the same path.
+   want to preserve a working lab. The API and dashboard must use the same path;
+   the CLI reads evidence over HTTP from the API it called.
 4. Open dashboard tabs on **Data science**, **Broker monitoring** and
    **Release simulation**. Use the defaults: journey seed 42 / 12,000 rows;
    broker seed 11 / 14 days / seven-day baseline; release seed 7 / 150 journeys.

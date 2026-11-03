@@ -289,3 +289,63 @@ def test_reset_button_clears_the_lab(api):
     click(app, "Reset everything")
     assert httpx.get(f"{api}/metrics").json()["requests"]["total"] == 0
     assert httpx.get(f"{api}/health").json()["release_version"] == "v1.0.0"
+
+
+def test_cli_demo_uses_api_evidence_with_a_different_local_database(api, tmp_path):
+    cli_db = tmp_path / 'unrelated-cli.db'
+    result = subprocess.run([sys.executable, 'demo.py'], env={
+        **os.environ, 'PARTNERFLOW_API_URL': api, 'PARTNERFLOW_DB': str(cli_db),
+    }, capture_output=True, text=True, timeout=90, cwd=config.PROJECT_DIR)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not cli_db.exists()
+    lines = {line.split()[0]: line.split() for line in result.stdout.splitlines()
+             if line.startswith(('before-release ', 'after-release ', 'after-fix '))}
+    assert {label: int(row[3]) for label, row in lines.items()} == {
+        'before-release': 6, 'after-release': 41, 'after-fix': 16}
+    assert all(int(row[2]) == 150 for row in lines.values())
+    assert 'Still refused after the fix: 10' in result.stdout
+    assert 'Deterministic replay' in result.stdout
+
+
+def test_replay_settings_survive_new_dashboard_sessions(api):
+    httpx.post(f'{api}/lab/reset').raise_for_status()
+    app = open_page('Release simulation')
+    next(w for w in app.number_input if w.label == 'Customer journeys per run').set_value(60).run()
+    next(w for w in app.number_input if w.label == 'Seed').set_value(19).run()
+    click(app, "Generate 'before-release' traffic")
+    for activate, generate in [('Activate release v1.1.0', "Generate 'after-release' traffic"),
+                               ('Apply patch v1.1.1', "Generate 'after-fix' traffic")]:
+        app = open_page('Release simulation')
+        assert {w.label: w.value for w in app.number_input} == {
+            'Customer journeys per run': 60, 'Seed': 19}
+        assert all(w.disabled for w in app.number_input)
+        click(app, activate)
+        click(app, generate)
+
+    def applications(label):
+        rows = httpx.get(f'{api}/lab/requests', params={'run_label': label, 'limit': 5000}).json()
+        assert all(r['metadata']['replay_seed'] == 19 and r['metadata']['replay_count'] == 60 for r in rows)
+        return sorted((r['metadata']['journey'], r['partner_id'], r['metadata']['product'],
+                       r['metadata']['amount'], r['metadata']['term_months'])
+                      for r in rows if r['endpoint'] == '/applications' and r['method'] == 'POST')
+
+    before = applications('before-release')
+    assert len(before) == 60
+    assert before == applications('after-release') == applications('after-fix')
+    click(app, 'Start the story again (reset the lab)')
+    assert {w.label: w.value for w in app.number_input} == {
+        'Customer journeys per run': 150, 'Seed': 7}
+    assert not any(w.disabled for w in app.number_input)
+
+
+def test_legacy_baseline_blocks_replay_and_offers_reset(api):
+    from partnerflow import traffic
+
+    httpx.post(f'{api}/lab/reset').raise_for_status()
+    with httpx.Client(base_url=api) as client:
+        traffic.run_traffic(client, traffic.build_journeys(19, 30), 'before-release')
+    app = open_page('Release simulation')
+    assert any('Replay settings are missing' in e.value for e in app.error)
+    assert not any(b.label == 'Activate release v1.1.0' for b in app.button)
+    click(app, 'Start the story again (reset the lab)')
+    assert not app.error

@@ -388,6 +388,19 @@ release, after it, and after the fix. With the defaults (150 journeys, seed 7) t
 refusal rate for `POST /applications` goes 4.0% → 27.3% → 10.7%. It does not return to
 4.0%, and should not: the difference is the intended `invoice_finance` rule.
 
+The baseline's journey count and seed are stored in request-log metadata and
+recovered when a new dashboard session opens. Each recorded run is checked for
+complete, unique journeys, the expected release, and matching partner/product/
+amount/term values. Old logs without these settings, partial runs, or inconsistent
+traffic require a fresh baseline through the reset button. Use a disposable lab
+for this story: resetting deletes its recorded data.
+
+`demo.py` reads its evidence over HTTP from the same API that handled its requests
+and checks control responses and all three runs before printing comparisons.
+Its local `PARTNERFLOW_DB` value is irrelevant. The dashboard still reads SQLite
+for analysis, so the API and dashboard must share `PARTNERFLOW_DB` (as they do
+when launched together with `start.sh`).
+
 This is deterministic replay on fixed cases. The observed differences and matched
 request flips demonstrate functional regressions and their repair. They do not
 provide independent population samples, so the release comparison shows no
