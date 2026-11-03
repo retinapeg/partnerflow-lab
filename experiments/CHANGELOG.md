@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — scientific validation and reproducibility
+
+- Repaired the locked project identity using `uv lock`, retaining every dependency version.
+- Added `reproduce.sh` and compact versioned evidence for the existing methods table.
+- Validated the unchanged drawdown DiD over seeds 1000–1099 under the original
+  generator and one predeclared untreated differential trend; retained all 200
+  replications, aggregate bias/RMSE/coverage and Monte Carlo coverage uncertainty.
+- Added source/data hashes, a generated validation summary and a one-page
+  prequalification decision brief. No real-world commercial effect is claimed.
+- Renamed single-run table errors to distinguish them from repeated-sampling bias.
+- Changed the operational release replay to descriptive regression evidence,
+  clarified commercial proxies and funnel prioritisation, and reordered the demo
+  around the decision and its scientific evidence.
+
 ## 0.1.0 — GOAL tier
 
 - Added the reproducible synthetic partner funnel and ground-truth parameters.

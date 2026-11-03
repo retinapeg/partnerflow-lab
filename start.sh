@@ -5,8 +5,8 @@ set -e
 cd "$(dirname "$0")"
 
 if [ ! -x .venv/bin/python ]; then
-    if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
-        echo "PartnerFlow Lab needs Python 3.10 or newer. Found: $(python3 --version 2>&1)"
+    if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+        echo "PartnerFlow Lab needs Python 3.11 or newer. Found: $(python3 --version 2>&1)"
         exit 1
     fi
     echo "First run: creating the Python environment (needs internet once) ..."

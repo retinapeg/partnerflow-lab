@@ -26,24 +26,25 @@ def render(evidence: dict) -> str:
         raise ValueError("Need exactly one passing result for every reported estimator")
     by_method = {row["method"]: row for row in rows}
     lines = [
-        "| Method | Estimate | 95% interval | Truth | Bias |",
+        "| Method | Estimate | 95% interval | Truth | Estimation error |",
         "|---|---:|---:|---:|---:|",
     ]
     for method in METHODS:
         row = by_method[method]
-        estimate, truth, bias = (row[key] for key in ("estimate", "truth", "bias"))
+        estimate, truth, bias = (row[key] for key in ("estimate", "truth", "estimation_error"))
         lo, hi = row["ci95"]
         if not all(math.isfinite(v) for v in (estimate, truth, bias, lo, hi)) or lo > hi:
             raise ValueError("Invalid estimate or interval")
         if not math.isclose(bias, estimate - truth, abs_tol=1e-10):
-            raise ValueError("Bias must equal estimate minus truth")
+            raise ValueError("Estimation error must equal estimate minus truth")
         lines.append(f"| {method} | {estimate:.2f} | [{lo:.2f}, {hi:.2f}] | {truth:.2f} | {bias:+.2f} |")
     metadata = by_method["Hierarchical: mean baseline"]["metadata"]
     lines += [
         "",
-        "Effects and biases are in percentage points; the hierarchical row is an",
+        "Effects and estimation errors are in percentage points; the hierarchical row is an",
         "unweighted baseline conversion percentage, not a treatment effect. Its",
         "95% interval is a Bayesian credible interval; other rows use confidence intervals.",
+        "Single-run estimation error is not repeated-sampling bias.",
         "",
         f"Hierarchical 94% partner-interval coverage: {metadata['calibration94']:.1%}. "
         f"Maximum R-hat: {metadata['max_rhat']:.3f}; "
@@ -69,7 +70,7 @@ def write_report(results: Path, readme: Path) -> str:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=ROOT / "data/method-results.json")
+    parser.add_argument("--results", type=Path, default=ROOT / "results/method-results.json")
     parser.add_argument("--readme", type=Path, default=ROOT / "README.md")
     args = parser.parse_args()
     print(write_report(args.results, args.readme))

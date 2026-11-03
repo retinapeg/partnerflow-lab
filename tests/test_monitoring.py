@@ -152,8 +152,11 @@ def test_completion_evidence_brackets_the_true_effect(default):
     assert high < 0                                           # clearly not chance
     assert evidence["cross_broker_r"] < -0.8                  # strong, confounded correlation
     assert len(evidence["cross_broker"]) == 5
-    assert evidence["lost_applications"] > 20
-    assert evidence["lost_loan_value"] > 0
+    expected = max(0, evidence["affected_before"]["rate"] - evidence["affected_during"]["rate"]) * evidence["affected_during"]["n"]
+    during = default["applications"].query("broker == 'meridian' and 225 <= hour_index <= 232")
+    assert evidence["completion_shortfall"] == pytest.approx(expected)
+    assert evidence["requested_amount_proxy"] == pytest.approx(expected * during.loan_amount.median())
+    assert not {"lost_applications", "lost_loan_value"} & evidence.keys()
 
 
 def test_applications_affected_lists_the_right_customers(default):

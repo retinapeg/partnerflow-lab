@@ -22,7 +22,7 @@ def record_result(method_rows, request):
     def record(method, estimate, ci95, truth, metadata=None):
         method_rows.append(dict(method=method, estimate=float(estimate),
                                 ci95=[float(x) for x in ci95], truth=float(truth),
-                                bias=float(estimate - truth), metadata=metadata or {}))
+                                estimation_error=float(estimate - truth), metadata=metadata or {}))
 
     return record
 

@@ -228,7 +228,9 @@ def completion_evidence(applications: pd.DataFrame, hourly: pd.DataFrame,
         hourly[hourly["broker"] == broker].set_index("hour_index")["observed_rate"])
     within_r = float(hourly_apps[["observed_rate", "completion"]].corr().iloc[0, 1]) if len(hourly_apps) > 3 else np.nan
 
-    lost = max(0.0, (ab - ad)) * n_ad
+    # Descriptive shortfall relative to the observed baseline rate. This uses
+    # the raw before/during change, not an identified incremental causal loss.
+    shortfall = max(0.0, (ab - ad)) * n_ad
     return {
         "broker": broker,
         "affected_before": {"rate": ab, "n": n_ab},
@@ -246,8 +248,8 @@ def completion_evidence(applications: pd.DataFrame, hourly: pd.DataFrame,
         "cross_broker_r": cross_r,
         "within_broker_hourly": hourly_apps.reset_index(),
         "within_broker_r": within_r,
-        "lost_applications": float(lost),
-        "lost_loan_value": float(lost * affected_during["loan_amount"].median()) if n_ad else 0.0,
+        "completion_shortfall": float(shortfall),
+        "requested_amount_proxy": float(shortfall * affected_during["loan_amount"].median()) if n_ad else 0.0,
     }
 
 

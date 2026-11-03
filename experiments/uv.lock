@@ -468,7 +468,7 @@ wheels = [
 ]
 
 [[package]]
-name = "partner-flow-lab"
+name = "partner-funnel-lab"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

@@ -8,6 +8,10 @@ requests, switch failures on, replay a faulty release, and analyse the results.
 
 Nothing here is real: no real lender, customers, money or credit decisions.
 
+**Start the review:** [prequalification decision brief](experiments/PREQUALIFICATION_DECISION_BRIEF.md)
+→ [100-seed validation](experiments/VALIDATION_SUMMARY.md) → [three-minute demo](DEMO_SCRIPT.md).
+Rebuild all scientific evidence with `cd experiments && ./reproduce.sh`.
+
 Two halves, one lab:
 
 - **Operations** (this folder): the API partners integrate with: keys, faults, a faulty release
@@ -16,7 +20,8 @@ Two halves, one lab:
   effects baked in, and the estimators tested against them. When pre-qualification rolls out
   partner by partner and the biggest partners go first, naive before/after overstates the lift
   by about four points; difference-in-differences lands within half a point; a hierarchical
-  Bayesian model's partner-level intervals cover 92.5% of true rates. The results table in
+  Bayesian model's partner-level intervals cover 92.5% of true rates in one seed
+  (37/40 partners, not general calibration). The results table in
   [`experiments/README.md`](experiments/README.md) is generated from the passing tests.
 
 ## Run it
@@ -25,7 +30,7 @@ Two halves, one lab:
 ./start.sh
 ```
 
-The first run creates `.venv` and installs the packages (needs Python 3.10 or newer, and
+The first run creates `.venv` and installs the packages (needs Python 3.11 or newer, and
 internet once). After that everything runs offline, on this machine only.
 
 | What | Address |
@@ -382,6 +387,12 @@ The dashboard's *Release simulation* page sends the same seeded traffic before t
 release, after it, and after the fix. With the defaults (150 journeys, seed 7) the
 refusal rate for `POST /applications` goes 4.0% → 27.3% → 10.7%. It does not return to
 4.0%, and should not: the difference is the intended `invoice_finance` rule.
+
+This is deterministic replay on fixed cases. The observed differences and matched
+request flips demonstrate functional regressions and their repair. They do not
+provide independent population samples, so the release comparison shows no
+sampling confidence interval or p-value. Flags mark observed increases. Unmatched
+live traffic additionally requires checking whether the traffic mix changed.
 
 ## Fault scenarios
 

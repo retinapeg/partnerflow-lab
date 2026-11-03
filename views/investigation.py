@@ -90,7 +90,7 @@ def concentration(filtered: pd.DataFrame) -> None:
     if rows.empty:
         st.caption(f"No requests in this selection carry a {name.lower()}.")
         return
-    table, test = analytics.failure_concentration(rows, column)
+    table, _ = analytics.failure_concentration(rows, column)
     left, right = st.columns([3, 2])
     with left:
         common.show_table(
@@ -103,12 +103,8 @@ def concentration(filtered: pd.DataFrame) -> None:
         top = table.iloc[0][column]
         st.altair_chart(charts.bars(table, column, "failure_rate", highlight=[top],
                                     value_title="failure rate"), width="stretch")
-    if test["p_value"] is not None:
-        verdict = ("unlikely to be chance" if test["p_value"] < 0.01
-                   else "could plausibly be chance")
-        caveat = "" if test["valid"] else " Some groups are small, so treat this as a rough guide."
-        st.write(f"Chi-square test that every group fails at the same rate: "
-                 f"**{common.p_value_text(test['p_value'])}**. The differences are {verdict}.{caveat}")
+    st.caption("These are descriptive patterns in recorded requests. Replayed requests do not "
+               "provide independent population samples for significance tests.")
 
 
 def release_changes(log: pd.DataFrame) -> None:
@@ -119,11 +115,11 @@ def release_changes(log: pd.DataFrame) -> None:
         return
     changes = analytics.detect_release_changes(log)
     st.write("Each release is compared with the one before it, endpoint by endpoint. "
-             "A change is flagged when it is too large to be chance (p below 0.01).")
+             "A flag marks an observed increase; it is not a significance test.")
     common.show_table(
         changes[["request", "from_release", "to_release", "requests_before", "failure_rate_before",
-                 "requests_after", "failure_rate_after", "change", "ci_low", "ci_high", "flagged"]],
-        percent_columns=("failure_rate_before", "failure_rate_after", "change", "ci_low", "ci_high"))
+                 "requests_after", "failure_rate_after", "change", "flagged"]],
+        percent_columns=("failure_rate_before", "failure_rate_after", "change"))
     st.caption("This only says the failure rate changed when the release changed. If the traffic "
                "mix changed at the same moment, that could be the cause instead. The release "
                "simulation rules that out by replaying identical traffic.")
