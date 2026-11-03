@@ -1,7 +1,7 @@
 {
   "seed": 0,
   "exitstatus": 0,
-  "tests_collected": 66,
+  "tests_collected": 76,
   "rows": [
     {
       "method": "Randomised A/B: repeat",
