@@ -44,8 +44,8 @@ class PowerRequest(Contract):
 
     @model_validator(mode="after")
     def check_design(self):
-        if self.baseline_rate + self.mde_pp / 100 >= 1:
-            raise ValueError("baseline_rate + mde_pp / 100 must be below 1")
+        if not self.baseline_rate < self.baseline_rate + self.mde_pp / 100 < 1:
+            raise ValueError("baseline_rate + mde_pp / 100 must be distinguishable from baseline and below 1")
         if self.alpha >= self.power:
             raise ValueError("alpha must be below power")
         return self

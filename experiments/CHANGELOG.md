@@ -25,3 +25,9 @@
 - Added funnel, power, A/B analysis and health endpoints with Pydantic contracts and API tests.
 - Added a methods-versus-truth report generated from passing test evidence, plus run instructions and an ML/DS learning log.
 - Added architecture snapshots and instructions for inspecting Git checkpoints.
+# Bounded numerical correction
+
+- Power calculations now reject indistinguishable rates, solver failures and
+  nonfinite recruitment times. The API returns a documented 422 instead of a
+  misleading sample size or unhandled error; SCHEMA.md records this behaviour.
+

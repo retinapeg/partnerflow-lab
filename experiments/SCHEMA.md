@@ -58,6 +58,10 @@ The default data columns and API response contracts are unchanged.
 - Power requires finite values, `0 < baseline_rate < baseline_rate + mde_pp/100 < 1`,
   `0 < alpha < power < 1`, and positive total eligible `daily_traffic` across
   both arms. `days_to_run` is recruitment time, excluding outcome follow-up.
+  Numerically indistinguishable rates, solver nonconvergence, and nonfinite
+  sample sizes or recruitment times return 422 with `{detail}` rather than
+  an unsupported estimate. Validation detail may be a list; numerical-failure
+  detail is a string.
 - Arm counts are strict integers: `n > 0`, `0 <= conversions <= n`. Optional
   `planned_n_per_arm` is null or a positive strict integer. `ci95` has two values
   in percentage points. Readiness means both arms meet the supplied sample size;

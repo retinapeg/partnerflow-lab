@@ -89,6 +89,7 @@ def test_analyse_contract_and_readiness(client, planned, ready):
 @pytest.mark.parametrize("changes", [
     {"baseline_rate": 0}, {"mde_pp": -1}, {"mde_pp": 90},
     {"alpha": 0.9}, {"daily_traffic": 0}, {"power": 1}, {"unknown": 1},
+    {"mde_pp": 1e-10}, {"mde_pp": 1e-20}, {"daily_traffic": 1e-320},
 ])
 def test_power_validation(client, changes):
     body = {"baseline_rate": 0.2, "mde_pp": 4, "daily_traffic": 100, **changes}

@@ -56,7 +56,10 @@ def create_app(events_path: Path = ROOT / "data/events.parquet") -> FastAPI:
 
     @app.post("/v1/experiments/power", response_model=PowerResult, responses=errors)
     def power(body: PowerRequest):
-        return calculate_power(**body.model_dump())
+        try:
+            return calculate_power(**body.model_dump())
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @app.post("/v1/experiments/analyse", response_model=AnalyseResult, responses=errors)
     def analysis(body: AnalyseRequest):

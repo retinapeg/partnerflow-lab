@@ -35,3 +35,19 @@ def test_invalid_power(overrides):
     inputs.update(overrides)
     with pytest.raises(ValueError):
         calculate_power(**inputs)
+
+
+@pytest.mark.parametrize("changes", [
+    {"mde_pp": 1e-10}, {"mde_pp": 1e-20}, {"daily_traffic": 1e-320},
+])
+def test_extreme_designs_fail_instead_of_reporting_a_sample_size(changes):
+    with pytest.raises(ValueError):
+        calculate_power(**{"baseline_rate": 0.16, "mde_pp": 4,
+                           "daily_traffic": 100, **changes})
+
+
+@pytest.mark.parametrize("result", [float("nan"), float("inf"), -1, 10])
+def test_invalid_solver_results_are_rejected(monkeypatch, result):
+    monkeypatch.setattr("analysis.power.NormalIndPower.solve_power", lambda *a, **kw: result)
+    with pytest.raises(ValueError, match="numerically unsupported"):
+        calculate_power(0.16, 4, 100)
