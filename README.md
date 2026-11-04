@@ -20,6 +20,14 @@ Two halves, one lab:
   Bayesian model's partner-level intervals cover 92.5% of true rates. The results table in
   [`experiments/README.md`](experiments/README.md) is generated from the passing tests.
 
+## Latest analysis (3 November 2026, branch `iwoca-depth`)
+
+The deepest work so far is on the [`iwoca-depth`](https://github.com/retinapeg/partnerflow-lab/tree/iwoca-depth) branch, which is being merged into `main`. All results are simulated.
+
+- **Drawdown validation over 100 seeds** ([summary](https://github.com/retinapeg/partnerflow-lab/blob/iwoca-depth/experiments/VALIDATION_SUMMARY.md)): the difference-in-differences estimator, with a true effect of +2 pp per arriving customer, averaged +2.08 pp, and 94 of 100 intervals covered the truth. Adding one untreated trend that breaks parallel trends (fixed before evaluation, not tuned) drops coverage to 9 of 100 and biases the estimate by −1.89 pp: an invalid counterfactual defeats an otherwise working estimator.
+- **Decision brief** ([brief](https://github.com/retinapeg/partnerflow-lab/blob/iwoca-depth/experiments/PREQUALIFICATION_DECISION_BRIEF.md)): prepare a real randomised test and do not authorise rollout from simulated evidence. The commercial test is incremental risk-adjusted contribution, with cannibalisation of existing lending and changes in borrower risk measured, not assumed.
+- **Reliability pass** ([hand-off](https://github.com/retinapeg/partnerflow-lab/blob/iwoca-depth/HANDOFF.md)): numerically unsupported power calculations are rejected with clear API errors, CLI and API evidence agree, and replay settings persist across sessions. 174 main and 76 experiment tests pass; all 200 validation cases reproduce byte for byte.
+
 ## Run it online (nothing to install)
 
 The same lab runs as one container: the API on a private port, the dashboard on the public one.
